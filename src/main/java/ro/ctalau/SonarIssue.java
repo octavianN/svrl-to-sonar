@@ -7,19 +7,19 @@ import com.google.common.collect.ImmutableMap;
 
 public class SonarIssue {
   private static Map<String, String> severityMapping = ImmutableMap.<String, String>builder()
-      .put("FATAL", "Blocker")
-      .put("ERROR", "Critical")
-      .put("WARN", "Minor")
+      .put("FATAL", "BLOCKER")
+      .put("ERROR", "CRITICAL")
+      .put("WARN", "MINOR")
       
-      .put("CAUTION", "Minor")
-      .put("INFO", "Minor")
-      .put("HINT", "Minor")
-      .put("TRACE", "Minor")
-      .put("DEBUG", "Minor")
+      .put("CAUTION", "MINOR")
+      .put("INFO", "MINOR")
+      .put("HINT", "MINOR")
+      .put("TRACE", "MINOR")
+      .put("DEBUG", "MINOR")
       .build();
   
   public String engineId = "Schematron";
-  public String type = "CODE SMELL";
+  public String type = "CODE_SMELL";
   public int effortMinutes = 5;
   
   public String severity;

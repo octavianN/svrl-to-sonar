@@ -27,6 +27,8 @@ import com.google.common.collect.ImmutableMap;
 
 public class Convert {
 
+  private static final String CHECKED_DOCUMENT_PATH = "paper.xml";
+  
   private static final XPath xpath = XPathFactory.newInstance().newXPath();
   
   
@@ -36,24 +38,14 @@ public class Convert {
     XmlFile svrlFile = createXmlFile(svrlFileName);
     
     // Find the file that was checked.
-    XPathExpression findActivePatternDocument = xpath.compile(
-        "//*[local-name() = 'active-pattern']/@document");
-    String checkedFile = (String) findActivePatternDocument
-        .evaluate(svrlFile.getDocument(), XPathConstants.STRING);
-    String checkedFilePath = checkedFile.replace("file:", "");
-    
+    String checkedFilePath = findCheckedFilePath(svrlFile);
     
     // Find failed asserts.
-    XPathExpression findFailedAsserts = xpath.compile(
-        "//*[local-name() = 'failed-assert']");
-    List<Node> failedAsserts = XmlFile.asList((NodeList) 
-        findFailedAsserts.evaluate(svrlFile.getDocument(), XPathConstants.NODESET));
+    List<Node> failedAsserts = findFailedAsserts(svrlFile);
     
     XmlFile file = createXmlFile(checkedFilePath);
-    Document document = file.getDocument();
-
     List<SonarIssue> issues = failedAsserts.stream()
-      .map(failedAssert -> failedAssertToSonarIssue(failedAssert, document))
+      .map(failedAssert -> failedAssertToSonarIssue(failedAssert, file.getDocument()))
       .filter(Objects::nonNull)
       .collect(Collectors.toList());
     
@@ -61,7 +53,25 @@ public class Convert {
     System.out.println(issuesJson);
   }
 
-  
+
+  private static List<Node> findFailedAsserts(XmlFile svrlFile) throws XPathExpressionException {
+    XPathExpression findFailedAsserts = xpath.compile(
+        "//*[local-name() = 'failed-assert']");
+    List<Node> failedAsserts = XmlFile.asList((NodeList) 
+        findFailedAsserts.evaluate(svrlFile.getDocument(), XPathConstants.NODESET));
+    return failedAsserts;
+  }
+
+
+  private static String findCheckedFilePath(XmlFile svrlFile) throws XPathExpressionException {
+    XPathExpression findActivePatternDocument = xpath.compile(
+        "//*[local-name() = 'active-pattern']/@document");
+    String checkedFile = (String) findActivePatternDocument
+        .evaluate(svrlFile.getDocument(), XPathConstants.STRING);
+    String checkedFilePath = checkedFile.replace("file:", "");
+    return checkedFilePath;
+  }
+
   private static SonarIssue failedAssertToSonarIssue(Node failedAssert, Document document) {
     Element failedAssertElement = (Element)failedAssert;
     String expr = failedAssertElement.getAttribute("location");
@@ -74,10 +84,11 @@ public class Convert {
       XmlTextRange nodeLocation = XmlFile.nodeLocation(matchingNode);
       
       SonarIssueLocation location = new SonarIssueLocation(
-          failedAssertElement.getTextContent(), "paper.xml", nodeLocation);
+          failedAssertElement.getTextContent(), CHECKED_DOCUMENT_PATH, nodeLocation);
       issue = new SonarIssue("id", failedAssertElement.getAttribute("role"), 
           location);
     } catch (XPathExpressionException e) {
+      e.printStackTrace();
     }
     return issue;
   }
