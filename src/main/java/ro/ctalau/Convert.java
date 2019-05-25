@@ -31,7 +31,7 @@ public class Convert {
   
   
   public static void main(String[] args) throws IOException, XPathExpressionException {
-    String svrlFileName = "/home/ctalau/repo/markupuk-2019-paper/bin/tmp/paper.svrl";
+    String svrlFileName = args[0];
     
     XmlFile svrlFile = createXmlFile(svrlFileName);
     
