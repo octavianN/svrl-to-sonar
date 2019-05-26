@@ -8,7 +8,7 @@ public class SonarIssueLocation {
   public XmlTextRange textRange;
   
   public SonarIssueLocation(String message, String filePath, XmlTextRange textRange) {
-    this.message = message.replaceAll("\\s+", " ").trim();
+    this.message = message;
     this.filePath = filePath;
     this.textRange = textRange;
   }

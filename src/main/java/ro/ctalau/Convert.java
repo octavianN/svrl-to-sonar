@@ -1,25 +1,18 @@
 package ro.ctalau;
 
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.Paths;
 import java.util.List;
 import java.util.Objects;
 import java.util.stream.Collectors;
 
 import javax.xml.xpath.XPath;
 import javax.xml.xpath.XPathConstants;
-import javax.xml.xpath.XPathExpression;
 import javax.xml.xpath.XPathExpressionException;
 import javax.xml.xpath.XPathFactory;
 
 import org.sonarsource.analyzer.commons.xml.XmlFile;
-import org.sonarsource.analyzer.commons.xml.XmlTextRange;
 import org.w3c.dom.Document;
-import org.w3c.dom.Element;
 import org.w3c.dom.Node;
-import org.w3c.dom.NodeList;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.ImmutableMap;
@@ -30,22 +23,23 @@ public class Convert {
   private static final String CHECKED_DOCUMENT_PATH = "paper.xml";
   
   private static final XPath xpath = XPathFactory.newInstance().newXPath();
+
+  private Document document;
   
   
   public static void main(String[] args) throws IOException, XPathExpressionException {
     String svrlFileName = args[0];
     
-    XmlFile svrlFile = createXmlFile(svrlFileName);
-    
-    // Find the file that was checked.
-    String checkedFilePath = findCheckedFilePath(svrlFile);
+    SvrlFile svrlFile = new SvrlFile(svrlFileName);
     
     // Find failed asserts.
-    List<Node> failedAsserts = findFailedAsserts(svrlFile);
+    List<SvrlIssue> failedAsserts = svrlFile.findFailedAsserts();
+
+    // Create the converter
+    Convert convert = new Convert(svrlFile.findCheckedFilePath());
     
-    XmlFile file = createXmlFile(checkedFilePath);
     List<SonarIssue> issues = failedAsserts.stream()
-      .map(failedAssert -> failedAssertToSonarIssue(failedAssert, file.getDocument()))
+      .map(convert::failedAssertToSonarIssue)
       .filter(Objects::nonNull)
       .collect(Collectors.toList());
     
@@ -53,50 +47,26 @@ public class Convert {
     System.out.println(issuesJson);
   }
 
-
-  private static List<Node> findFailedAsserts(XmlFile svrlFile) throws XPathExpressionException {
-    XPathExpression findFailedAsserts = xpath.compile(
-        "//*[local-name() = 'failed-assert']");
-    List<Node> failedAsserts = XmlFile.asList((NodeList) 
-        findFailedAsserts.evaluate(svrlFile.getDocument(), XPathConstants.NODESET));
-    return failedAsserts;
+  public Convert(String checkedFilePath) throws IOException {
+    document = XmlFileUtil.createXmlFile(checkedFilePath).getDocument();
   }
-
-
-  private static String findCheckedFilePath(XmlFile svrlFile) throws XPathExpressionException {
-    XPathExpression findActivePatternDocument = xpath.compile(
-        "//*[local-name() = 'active-pattern']/@document");
-    String checkedFile = (String) findActivePatternDocument
-        .evaluate(svrlFile.getDocument(), XPathConstants.STRING);
-    String checkedFilePath = checkedFile.replace("file:", "");
-    return checkedFilePath;
-  }
-
-  private static SonarIssue failedAssertToSonarIssue(Node failedAssert, Document document) {
-    Element failedAssertElement = (Element)failedAssert;
-    String expr = failedAssertElement.getAttribute("location");
-    // Get rid of namespaces - the default XPath implementation cannot handle namespaces well.
-    expr = expr.replaceAll("\\*:([a-zA-Z0-9]+)", "*[local-name()='$1']");
-    
+  
+  public SonarIssue failedAssertToSonarIssue(SvrlIssue failedAssert) {
     SonarIssue issue = null;
     try {
+      String expr = failedAssert.getLocationXPath();
       Node matchingNode = (Node) xpath.compile(expr).evaluate(document, XPathConstants.NODE);
-      XmlTextRange nodeLocation = XmlFile.nodeLocation(matchingNode);
       
       SonarIssueLocation location = new SonarIssueLocation(
-          failedAssertElement.getTextContent(), CHECKED_DOCUMENT_PATH, nodeLocation);
-      issue = new SonarIssue("id", failedAssertElement.getAttribute("role"), 
+          failedAssert.getMessage(), 
+          CHECKED_DOCUMENT_PATH, 
+          XmlFile.nodeLocation(matchingNode));
+      
+      issue = new SonarIssue("id", failedAssert.getRole(), 
           location);
     } catch (XPathExpressionException e) {
       e.printStackTrace();
     }
     return issue;
-  }
-
-
-  private static XmlFile createXmlFile(String fileName) throws IOException {
-    byte[] fileBytes = Files.readAllBytes(Paths.get(fileName));
-    XmlFile file = XmlFile.create(new String(fileBytes, StandardCharsets.UTF_8));
-    return file;
   }
 }
