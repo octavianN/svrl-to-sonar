@@ -18,7 +18,7 @@ public class ConvertTest {
     assertEquals(1, issues.size());
     assertEquals("It is recommended to have at least 30 words!", issues.get(0).getMessage());
     
-    Convert convert = new Convert(svrlFile.findCheckedFilePath());
+    Convert convert = new Convert(svrlFile.findCheckedFilePath(), "test/");
     SonarIssue sonarIssue = convert.failedAssertToSonarIssue(issues.get(0));
     
     assertEquals("MINOR", sonarIssue.severity);
@@ -28,5 +28,7 @@ public class ConvertTest {
     assertEquals(2, textRange.getStartColumn());
     assertEquals(26, textRange.getEndLine());
     assertEquals(13, textRange.getEndColumn());
+    
+    assertEquals("simple/paper.xml", sonarIssue.primaryLocation.filePath);
   }
 }

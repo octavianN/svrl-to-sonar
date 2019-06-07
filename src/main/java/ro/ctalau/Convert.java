@@ -1,6 +1,8 @@
 package ro.ctalau;
 
+import java.io.File;
 import java.io.IOException;
+import java.net.URI;
 import java.util.List;
 import java.util.Objects;
 import java.util.stream.Collectors;
@@ -24,8 +26,9 @@ public class Convert {
   
   private static final XPath xpath = XPathFactory.newInstance().newXPath();
 
-  private Document document;
-  
+  private final Document document;
+
+  private final String checkedFile;
   
   public static void main(String[] args) throws IOException, XPathExpressionException {
     String svrlFileName = args[0];
@@ -36,7 +39,8 @@ public class Convert {
     List<SvrlIssue> failedAsserts = svrlFile.findFailedAsserts();
 
     // Create the converter
-    Convert convert = new Convert(svrlFile.findCheckedFilePath());
+    String projectLocation = args.length > 1 ? args[1] : null;
+    Convert convert = new Convert(svrlFile.findCheckedFilePath(), projectLocation);
     
     List<SonarIssue> issues = failedAsserts.stream()
       .map(convert::failedAssertToSonarIssue)
@@ -47,7 +51,14 @@ public class Convert {
     System.out.println(issuesJson);
   }
 
-  public Convert(String checkedFilePath) throws IOException {
+  public Convert(String checkedFilePath, String projectLocation) throws IOException {
+    if (projectLocation != null) {
+      URI projectUri = new File(projectLocation).toURI();
+      URI checkedFileUri = new File(checkedFilePath).toURI();
+      checkedFile = projectUri.relativize(checkedFileUri).getPath();
+    } else {
+      checkedFile = CHECKED_DOCUMENT_PATH;
+    }
     document = XmlFileUtil.createXmlFile(checkedFilePath).getDocument();
   }
   
@@ -59,7 +70,7 @@ public class Convert {
       
       SonarIssueLocation location = new SonarIssueLocation(
           failedAssert.getMessage(), 
-          CHECKED_DOCUMENT_PATH, 
+          this.checkedFile, 
           XmlFile.nodeLocation(matchingNode));
       
       issue = new SonarIssue("id", failedAssert.getRole(), 
