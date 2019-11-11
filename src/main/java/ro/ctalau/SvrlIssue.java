@@ -13,7 +13,8 @@ public class SvrlIssue {
   }
   
   public String getRole() {
-    return failedAssert.getAttribute("role");
+    String attribute = failedAssert.getAttribute("role");
+	return attribute == "" ? "error" :  attribute;
   }
   
   public String getMessage() {

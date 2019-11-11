@@ -27,7 +27,7 @@ public class SvrlFile {
   
   public List<SvrlIssue> findFailedAsserts() throws XPathExpressionException {
     XPathExpression findFailedAsserts = xpath.compile(
-        "//*[local-name() = 'failed-assert']");
+        "//*[local-name() = 'failed-assert' or local-name='successful-report' ]");
     List<Node> failedAsserts = XmlFile.asList((NodeList) 
         findFailedAsserts.evaluate(svrlFile.getDocument(), XPathConstants.NODESET));
     
